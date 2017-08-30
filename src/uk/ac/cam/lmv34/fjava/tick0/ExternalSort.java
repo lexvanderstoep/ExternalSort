@@ -15,9 +15,7 @@ import java.nio.channels.FileChannel;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.PriorityQueue;
 import java.nio.IntBuffer;
 import java.nio.ByteBuffer;
 
@@ -39,12 +37,12 @@ public class ExternalSort {
 		print("ExternalSort, Part IB: Further Java (Tick 0), Lex van der Stoep\n");
 		
 		long maxMemory = Runtime.getRuntime().maxMemory();	// Memory available to JVM
-		int maxNumbers = (int) (0.15 * maxMemory / 4);		// Maximum number of integers we shall load
+		int maxNumbers = (int) (0.27 * maxMemory / 4);		// Maximum number of integers we shall load
 															// into memory at once
 		boolean currentIsF1 = true;							// The working list is in f1
 		int countingMax = (int) (0.1 * maxNumbers);			// The maximum range of numbers for which
 															// we shall use counting sort
-		int k = 32;											// parameter for k-way merge sort
+		int k = 16;											// parameter for k-way merge sort
 		
 		boolean print = false;
 		
@@ -373,26 +371,21 @@ public class ExternalSort {
 			}
 			
 			// Start the merge sort
-			//int[] numbers = new int[k];
-			PriorityQueue<NumberEntry> numbers = new PriorityQueue<>(k);
-			//int nonEmptyBlocks = 0;
+			int[] numbers = new int[k];
+			int nonEmptyBlocks = 0;
 			for (int i = 0; i < k; i++) {
 				if (!blocks[i].empty()) {
-					//numbers[i] = blocks[i].get();
-					numbers.add(new NumberEntry(blocks[i].get(), i));
-					//nonEmptyBlocks++;
+					numbers[i] = blocks[i].get();
+					nonEmptyBlocks++;
 				}
 			}
 			
-			boolean empty = false;
-			
-			while (!empty) {
-				/*int minIdx = -1;				// index of the min value
+			while (nonEmptyBlocks > 0) {
+				int minIdx = -1;				// index of the min value
 				int min = Integer.MAX_VALUE;	// min value
 				
 				nonEmptyBlocks = 0;
 				
-				//TODO: insert priority queue here
 				// Find the minimum value of the blocks
 				for (int i = 0; i < k; i++) {
 					if (!blocks[i].empty()) {
@@ -403,23 +396,13 @@ public class ExternalSort {
 						}
 						nonEmptyBlocks++;
 					}
-				}*/
+				}
 				
-				NumberEntry e = numbers.poll();
-				
-				/*
 				// Write out the min value and update the corresponding block/pointer
 				if (nonEmptyBlocks > 0) {
 					outputB.write(min);
 					blocks[minIdx].skip();
 					if (!blocks[minIdx].empty()) numbers[minIdx] = blocks[minIdx].get();
-				}*/
-				empty = (e==null);
-				if (!empty) {
-					outputB.write(e.value);
-					int idx = e.index;
-					blocks[idx].skip();
-					if (!blocks[idx].empty()) numbers.add(new NumberEntry(blocks[idx].get(), idx));
 				}
 			}
 
@@ -477,7 +460,7 @@ public class ExternalSort {
 			// Read in one block
 			IO.start();
 			byte[] tempBlock = new byte[4 * currentBlockSize];
-			int[] block = new int[currentBlockSize];
+			final int[] block = new int[currentBlockSize];
 			iS.read(tempBlock);
 			IntBuffer intB = ByteBuffer.wrap(tempBlock).asIntBuffer();
 			intB.get(block);
@@ -486,12 +469,11 @@ public class ExternalSort {
 			tempBlock = null;
 			totIOTime += IO.elapsed();
 
-			// Sort the block
 			Arrays.sort(block);
 			
 			// Write out the block
 			IO.start();
-			ByteBuffer byteBuffer = ByteBuffer.allocate(block.length * 4);        
+			ByteBuffer byteBuffer = ByteBuffer.allocate(block.length * 4);
 	        intB = byteBuffer.asIntBuffer();
 	        intB.put(block);
 			oS.write(byteBuffer.array());
@@ -506,7 +488,7 @@ public class ExternalSort {
 		IO.start();
 		oS.flush();
 		totIOTime += IO.elapsed();
-
+		
 		// If there was only one block, all the data will now be completely sorted
 		return numberOfBlocks <= 1;
 	}
